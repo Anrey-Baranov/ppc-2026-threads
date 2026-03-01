@@ -62,7 +62,7 @@ bool TitaevSortirovkaBetcheraSEQ::RunImpl() {
       count[i] += count[i - 1];
     }
 
-    for (int i = n - 1; i >= 0; i--) {
+    for (size_t i = n; i-- > 0;) {
       size_t bucket = (keys[i] >> (pass * BITS)) & (BUCKETS - 1);
       tmp[--count[bucket]] = keys[i];
     }
