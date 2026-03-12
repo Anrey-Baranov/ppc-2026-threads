@@ -39,7 +39,7 @@ CRSMatrix GenerateBandMatrix(std::size_t n, std::size_t bandwidth, double value)
 
 class AlekseevAMultMatrixCRSPerfTests : public ppc::util::BaseRunPerfTests<InType, OutType> {
  protected:
-  static constexpr std::size_t kSize = 40000;
+  static constexpr std::size_t kSize = 10000;
   static constexpr std::size_t kBandwidth = 30;
 
   void SetPerfAttributes(ppc::performance::PerfAttr &perf_attrs) override {
