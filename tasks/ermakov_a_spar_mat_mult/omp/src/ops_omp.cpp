@@ -22,6 +22,7 @@ bool ErmakovASparMatMultOMP::ValidateMatrix(const MatrixCRS &m) {
   if (m.row_ptr.size() != static_cast<std::size_t>(m.rows) + 1) {
     return false;
   }
+
   if (m.values.size() != m.col_index.size()) {
     return false;
   }
@@ -31,6 +32,7 @@ bool ErmakovASparMatMultOMP::ValidateMatrix(const MatrixCRS &m) {
   if (m.row_ptr.empty()) {
     return false;
   }
+
   if (m.row_ptr.front() != 0 || m.row_ptr.back() != nnz) {
     return false;
   }
@@ -57,9 +59,11 @@ bool ErmakovASparMatMultOMP::ValidationImpl() {
   if (a.cols != b.rows) {
     return false;
   }
+
   if (!ValidateMatrix(a)) {
     return false;
   }
+
   if (!ValidateMatrix(b)) {
     return false;
   }
@@ -81,14 +85,12 @@ bool ErmakovASparMatMultOMP::PreProcessingImpl() {
   return true;
 }
 
-void ErmakovASparMatMultOMP::ProcessRow(int i, std::vector<std::complex<double>> &row_vals, std::vector<int> &row_mark,
-                                        std::vector<int> &used_cols,
-                                        std::vector<std::vector<std::complex<double>>> &row_values,
-                                        std::vector<std::vector<int>> &row_cols) {
+void ErmakovASparMatMultOMP::AccumulateRowProducts(int row_index, std::vector<std::complex<double>> &row_vals,
+                                                   std::vector<int> &row_mark, std::vector<int> &used_cols) {
   used_cols.clear();
 
-  const int a_start = a_.row_ptr[i];
-  const int a_end = a_.row_ptr[i + 1];
+  const int a_start = a_.row_ptr[row_index];
+  const int a_end = a_.row_ptr[row_index + 1];
 
   for (int ak = a_start; ak < a_end; ++ak) {
     const int j = a_.col_index[ak];
@@ -101,8 +103,8 @@ void ErmakovASparMatMultOMP::ProcessRow(int i, std::vector<std::complex<double>>
       const int k = b_.col_index[bk];
       const auto b_jk = b_.values[bk];
 
-      if (row_mark[k] != i) {
-        row_mark[k] = i;
+      if (row_mark[k] != row_index) {
+        row_mark[k] = row_index;
         row_vals[k] = a_ij * b_jk;
         used_cols.push_back(k);
       } else {
@@ -110,22 +112,28 @@ void ErmakovASparMatMultOMP::ProcessRow(int i, std::vector<std::complex<double>>
       }
     }
   }
+}
 
-  std::ranges::sort(used_cols);
-
-  auto &cols = row_cols[static_cast<std::size_t>(i)];
-  auto &vals = row_values[static_cast<std::size_t>(i)];
+void ErmakovASparMatMultOMP::CollectRowValues(const std::vector<std::complex<double>> &row_vals,
+                                              const std::vector<int> &used_cols, std::vector<int> &cols,
+                                              std::vector<std::complex<double>> &vals) {
+  cols.clear();
+  vals.clear();
 
   cols.reserve(used_cols.size());
   vals.reserve(used_cols.size());
 
-  for (int k : used_cols) {
-    const auto v = row_vals[k];
+  for (int col : used_cols) {
+    const auto &v = row_vals[static_cast<std::size_t>(col)];
     if (v != std::complex<double>(0.0, 0.0)) {
-      cols.push_back(k);
+      cols.push_back(col);
       vals.push_back(v);
     }
   }
+}
+
+void ErmakovASparMatMultOMP::SortUsedCols(std::vector<int> &cols) {
+  std::ranges::sort(cols);
 }
 
 bool ErmakovASparMatMultOMP::RunImpl() {
@@ -136,122 +144,53 @@ bool ErmakovASparMatMultOMP::RunImpl() {
     return false;
   }
 
-  c_.values.clear();
-  c_.col_index.clear();
-  std::ranges::fill(c_.row_ptr, 0);
-
   if (m == 0 || p == 0) {
     return true;
   }
 
-  // ---------- 1. Первый проход: считаем nnz_per_row ----------
-  std::vector<int> nnz_per_row(static_cast<std::size_t>(m), 0);
+  std::vector<std::vector<std::complex<double>>> row_values(static_cast<std::size_t>(m));
+  std::vector<std::vector<int>> row_cols(static_cast<std::size_t>(m));
 
-#pragma omp parallel default(none) shared(nnz_per_row, m, p)
+#pragma omp parallel default(none) shared(m, p, row_values, row_cols)
   {
     std::vector<std::complex<double>> row_vals(static_cast<std::size_t>(p), std::complex<double>(0.0, 0.0));
+
     std::vector<int> row_mark(static_cast<std::size_t>(p), -1);
+
     std::vector<int> used_cols;
     used_cols.reserve(256);
 
-#pragma omp for schedule(static)
+#pragma omp for
     for (int i = 0; i < m; ++i) {
-      used_cols.clear();
+      AccumulateRowProducts(i, row_vals, row_mark, used_cols);
 
-      const int a_start = a_.row_ptr[i];
-      const int a_end = a_.row_ptr[i + 1];
+      SortUsedCols(used_cols);
 
-      for (int ak = a_start; ak < a_end; ++ak) {
-        const int j = a_.col_index[static_cast<std::size_t>(ak)];
-        const auto a_ij = a_.values[static_cast<std::size_t>(ak)];
+      const auto row_i = static_cast<std::size_t>(i);
 
-        const int b_start = b_.row_ptr[j];
-        const int b_end = b_.row_ptr[j + 1];
-
-        for (int bk = b_start; bk < b_end; ++bk) {
-          const int k = b_.col_index[static_cast<std::size_t>(bk)];
-          const auto b_jk = b_.values[static_cast<std::size_t>(bk)];
-
-          if (row_mark[static_cast<std::size_t>(k)] != i) {
-            row_mark[static_cast<std::size_t>(k)] = i;
-            row_vals[static_cast<std::size_t>(k)] = a_ij * b_jk;
-            used_cols.push_back(k);
-          } else {
-            row_vals[static_cast<std::size_t>(k)] += a_ij * b_jk;
-          }
-        }
-      }
-
-      int count = 0;
-      for (int k : used_cols) {
-        if (row_vals[static_cast<std::size_t>(k)] != std::complex<double>(0.0, 0.0)) {
-          ++count;
-        }
-      }
-      nnz_per_row[static_cast<std::size_t>(i)] = count;
+      CollectRowValues(row_vals, used_cols, row_cols[row_i], row_values[row_i]);
     }
   }
 
-  // ---------- 2. Префикс-сумма: row_ptr и общий nnz ----------
   int nnz = 0;
+
   for (int i = 0; i < m; ++i) {
-    c_.row_ptr[static_cast<std::size_t>(i)] = nnz;
-    nnz += nnz_per_row[static_cast<std::size_t>(i)];
+    const auto row_i = static_cast<std::size_t>(i);
+    c_.row_ptr[row_i] = nnz;
+    nnz += static_cast<int>(row_values[row_i].size());
   }
+
   c_.row_ptr[static_cast<std::size_t>(m)] = nnz;
 
-  c_.values.resize(static_cast<std::size_t>(nnz));
-  c_.col_index.resize(static_cast<std::size_t>(nnz));
+  c_.values.reserve(static_cast<std::size_t>(nnz));
+  c_.col_index.reserve(static_cast<std::size_t>(nnz));
 
-  // ---------- 3. Второй проход: реальная запись в c_ ----------
-#pragma omp parallel default(none) shared(m, p)
-  {
-    std::vector<std::complex<double>> row_vals(static_cast<std::size_t>(p), std::complex<double>(0.0, 0.0));
-    std::vector<int> row_mark(static_cast<std::size_t>(p), -1);
-    std::vector<int> used_cols;
-    used_cols.reserve(256);
+  for (int i = 0; i < m; ++i) {
+    const auto row_i = static_cast<std::size_t>(i);
 
-#pragma omp for schedule(static)
-    for (int i = 0; i < m; ++i) {
-      used_cols.clear();
+    c_.values.insert(c_.values.end(), row_values[row_i].begin(), row_values[row_i].end());
 
-      const int a_start = a_.row_ptr[i];
-      const int a_end = a_.row_ptr[i + 1];
-
-      for (int ak = a_start; ak < a_end; ++ak) {
-        const int j = a_.col_index[static_cast<std::size_t>(ak)];
-        const auto a_ij = a_.values[static_cast<std::size_t>(ak)];
-
-        const int b_start = b_.row_ptr[j];
-        const int b_end = b_.row_ptr[j + 1];
-
-        for (int bk = b_start; bk < b_end; ++bk) {
-          const int k = b_.col_index[static_cast<std::size_t>(bk)];
-          const auto b_jk = b_.values[static_cast<std::size_t>(bk)];
-
-          if (row_mark[static_cast<std::size_t>(k)] != i) {
-            row_mark[static_cast<std::size_t>(k)] = i;
-            row_vals[static_cast<std::size_t>(k)] = a_ij * b_jk;
-            used_cols.push_back(k);
-          } else {
-            row_vals[static_cast<std::size_t>(k)] += a_ij * b_jk;
-          }
-        }
-      }
-
-      std::sort(used_cols.begin(), used_cols.end());
-
-      int write_pos = c_.row_ptr[static_cast<std::size_t>(i)];
-      for (int k : used_cols) {
-        const auto v = row_vals[static_cast<std::size_t>(k)];
-        if (v == std::complex<double>(0.0, 0.0)) {
-          continue;
-        }
-        c_.col_index[static_cast<std::size_t>(write_pos)] = k;
-        c_.values[static_cast<std::size_t>(write_pos)] = v;
-        ++write_pos;
-      }
-    }
+    c_.col_index.insert(c_.col_index.end(), row_cols[row_i].begin(), row_cols[row_i].end());
   }
 
   return true;

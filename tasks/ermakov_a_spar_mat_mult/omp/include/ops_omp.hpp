@@ -27,6 +27,14 @@ class ErmakovASparMatMultOMP : public BaseTask {
                   std::vector<int> &used_cols, std::vector<std::vector<std::complex<double>>> &row_values,
                   std::vector<std::vector<int>> &row_cols);
 
+  void AccumulateRowProducts(int row_index, std::vector<std::complex<double>> &row_vals, std::vector<int> &row_mark,
+                             std::vector<int> &used_cols);
+
+  static void CollectRowValues(const std::vector<std::complex<double>> &row_vals, const std::vector<int> &used_cols,
+                               std::vector<int> &cols, std::vector<std::complex<double>> &vals);
+
+  static void SortUsedCols(std::vector<int> &cols);
+
   MatrixCRS a_;
   MatrixCRS b_;
   MatrixCRS c_;
