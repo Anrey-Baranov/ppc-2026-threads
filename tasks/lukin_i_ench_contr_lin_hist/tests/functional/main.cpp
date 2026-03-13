@@ -29,6 +29,12 @@ class LukinIRunFuncTestsThreads : public ppc::util::BaseRunFuncTests<InType, Out
 
     input_data_.resize(count);
 
+    if (image_size == 32) {
+      for (int i = 0; i < count; i++) {
+        input_data_[i] = 128;  // однотонное изображение
+      }
+    }
+
     for (int i = 0; i < count; i++) {
       input_data_[i] = 80 + (i % 81);  // [80,160] - как на обычных фото
     }
@@ -69,7 +75,7 @@ TEST_P(LukinIRunFuncTestsThreads, LinearHist) {
   ExecuteTest(GetParam());
 }
 
-const std::array<TestType, 3> kTestParam = {128, 256, 512};  // размер изображения
+const std::array<TestType, 4> kTestParam = {128, 256, 512, 32};  // размер изображения
 
 const auto kTestTasksList = std::tuple_cat(
     ppc::util::AddFuncTask<LukinITestTaskSEQ, InType>(kTestParam, PPC_SETTINGS_lukin_i_ench_contr_lin_hist),
