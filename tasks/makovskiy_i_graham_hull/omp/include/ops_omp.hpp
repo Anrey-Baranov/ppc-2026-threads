@@ -4,7 +4,7 @@
 
 namespace makovskiy_i_graham_hull {
 
-class ConvexHullGrahamOMP : public ppc::task::Task<InType, OutType> {
+class ConvexHullGrahamOMP : public BaseTask {
  public:
   static constexpr ppc::task::TypeOfTask GetStaticTypeOfTask() {
     return ppc::task::TypeOfTask::kOMP;

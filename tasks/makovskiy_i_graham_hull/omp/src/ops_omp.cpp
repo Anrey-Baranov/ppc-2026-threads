@@ -23,7 +23,7 @@ double DistSq(const Point &a, const Point &b) {
 size_t FindMinPointIndexOMP(const std::vector<Point> &points) {
   size_t min_idx = 0;
   size_t n = points.size();
-#pragma omp parallel
+#pragma omp parallel default(none) shared(points, n, min_idx)
   {
     size_t local_min = 0;
 #pragma omp for
@@ -50,7 +50,7 @@ void OmpQuickSort(RandomIt first, RandomIt last, Compare comp) {
     std::sort(first, last, comp);
     return;
   }
-  auto pivot = *(first + (last - first) / 2);
+  auto pivot = *(first + ((last - first) / 2));
   RandomIt middle1 = std::partition(first, last, [pivot, comp](const auto &a) { return comp(a, pivot); });
   RandomIt middle2 = std::partition(middle1, last, [pivot, comp](const auto &a) { return !comp(pivot, a); });
 
@@ -67,7 +67,7 @@ std::vector<Point> FilterPointsOMP(const std::vector<Point> &points, const Point
   size_t n = points.size();
   std::vector<uint8_t> keep(n, 1);
 
-#pragma omp parallel for
+#pragma omp parallel for default(none) shared(n, points, keep, p0)
   for (size_t i = 1; i < n - 1; ++i) {
     if (std::abs(CrossProduct(p0, points[i], points[i + 1])) < 1e-9) {
       keep[i] = 0;
@@ -134,7 +134,7 @@ bool ConvexHullGrahamOMP::RunImpl() {
     return cp > 0;
   };
 
-#pragma omp parallel
+#pragma omp parallel default(none) shared(points, comp)
   {
 #pragma omp single nowait
     OmpQuickSort(points.begin() + 1, points.end(), comp);
