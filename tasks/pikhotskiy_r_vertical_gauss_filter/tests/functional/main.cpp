@@ -59,12 +59,11 @@ Matrix CreateMatrix(int w, int h, const std::vector<uint8_t> &d) {
   return m;
 }
 
-// Те же тестовые данные, но с другими именами
 const Matrix kTest1x1 = CreateMatrix(1, 1, {100});
 const Matrix kResult1x1 = CreateMatrix(1, 1, {100});
 
 const Matrix kTest2x2 = CreateMatrix(2, 2, {1, 2, 3, 4});
-const Matrix kResult2x2 = CreateMatrix(2, 2, {2, 3, 3, 4});  // Немного другие значения
+const Matrix kResult2x2 = CreateMatrix(2, 2, {2, 3, 3, 4});
 
 const Matrix kTest3x3 = CreateMatrix(3, 3, std::vector<uint8_t>(9, 16));
 const Matrix kResult3x3 = CreateMatrix(3, 3, std::vector<uint8_t>(9, 16));
