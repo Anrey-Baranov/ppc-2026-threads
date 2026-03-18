@@ -4,12 +4,17 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <stdexcept>
 #include <string>
 #include <tuple>
+#include <vector>
 
 #include "rychkova_gauss/common/include/common.hpp"
 #include "rychkova_gauss/seq/include/ops_seq.hpp"
 #include "util/include/func_test_util.hpp"
+#include "util/include/util.hpp"
 
 namespace rychkova_gauss {
 

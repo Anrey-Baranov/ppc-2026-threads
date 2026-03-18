@@ -1,5 +1,7 @@
 #include "rychkova_gauss/seq/include/ops_seq.hpp"
 
+#include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
@@ -41,7 +43,7 @@ RychkovaGaussSEQ::RychkovaGaussSEQ(const InType &in) {
 }
 
 bool RychkovaGaussSEQ::ValidationImpl() {
-  if (GetInput().size() < 1) {
+  if (GetInput().empty()) {
     return false;
   }
   const auto len = GetInput()[0].size();
