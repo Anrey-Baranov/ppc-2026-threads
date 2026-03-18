@@ -1,6 +1,5 @@
 #pragma once
 
-#include <array>
 #include <vector>
 
 #include "lazareva_a_matrix_mult_strassen/common/include/common.hpp"
