@@ -6,13 +6,14 @@
 #include <tuple>
 
 #include "nalitov_d_dijkstras_algorithm/common/include/common.hpp"
+#include "nalitov_d_dijkstras_algorithm/omp/include/ops_omp.hpp"
 #include "nalitov_d_dijkstras_algorithm/seq/include/ops_seq.hpp"
 #include "util/include/func_test_util.hpp"
 #include "util/include/util.hpp"
 
 namespace nalitov_d_dijkstras_algorithm {
 
-class NalitovDDijkstrasAlgorithmSeqFuncTests : public ppc::util::BaseRunFuncTests<InType, OutType, TestType> {
+class NalitovDDijkstrasAlgorithmFuncTests : public ppc::util::BaseRunFuncTests<InType, OutType, TestType> {
  public:
   static std::string PrintTestParam(const TestType &test_param) {
     return std::get<1>(test_param);
@@ -39,21 +40,24 @@ class NalitovDDijkstrasAlgorithmSeqFuncTests : public ppc::util::BaseRunFuncTest
 
 namespace {
 
-TEST_P(NalitovDDijkstrasAlgorithmSeqFuncTests, AlgorithmIntegration) {
+TEST_P(NalitovDDijkstrasAlgorithmFuncTests, AlgorithmIntegration) {
   ExecuteTest(GetParam());
 }
 
 const std::array<TestType, 3> kTestParam = {std::make_tuple(2, "2"), std::make_tuple(4, "4"), std::make_tuple(6, "6")};
 
-const auto kTestTasksList = ppc::util::AddFuncTask<NalitovDDijkstrasAlgorithmSeq, InType>(
+const auto kTestTasksListSeq = ppc::util::AddFuncTask<NalitovDDijkstrasAlgorithmSeq, InType>(
     kTestParam, PPC_SETTINGS_nalitov_d_dijkstras_algorithm);
+const auto kTestTasksListOmp = ppc::util::AddFuncTask<NalitovDDijkstrasAlgorithmOmp, InType>(
+    kTestParam, PPC_SETTINGS_nalitov_d_dijkstras_algorithm);
+const auto kTestTasksList = std::tuple_cat(kTestTasksListSeq, kTestTasksListOmp);
 
 const auto kGtestValues = ppc::util::ExpandToValues(kTestTasksList);
 
 const auto kPerfTestName =
-    NalitovDDijkstrasAlgorithmSeqFuncTests::PrintFuncTestName<NalitovDDijkstrasAlgorithmSeqFuncTests>;
+    NalitovDDijkstrasAlgorithmFuncTests::PrintFuncTestName<NalitovDDijkstrasAlgorithmFuncTests>;
 
-INSTANTIATE_TEST_SUITE_P(DijkstraAlgorithmTests, NalitovDDijkstrasAlgorithmSeqFuncTests, kGtestValues, kPerfTestName);
+INSTANTIATE_TEST_SUITE_P(DijkstraAlgorithmTests, NalitovDDijkstrasAlgorithmFuncTests, kGtestValues, kPerfTestName);
 
 }  // namespace
 
