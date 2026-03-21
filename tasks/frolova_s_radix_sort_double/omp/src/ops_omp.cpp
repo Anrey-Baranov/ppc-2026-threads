@@ -113,16 +113,19 @@ bool FrolovaSRadixSortDoubleOMP::RunImpl() {
     }
   }
 
+  std::vector<double> merged_result;
+  merged_result.assign(working.begin(), working.begin() + chunk_sizes[0]);
+
   for (int i = 1; i < num_threads_to_use; i++) {
-    std::vector<double> merged(result.size() + chunk_sizes[i]);
+    std::vector<double> merged(merged_result.size() + chunk_sizes[i]);
     auto next_chunk_begin = working.begin() + chunk_offsets[i];
     auto next_chunk_end = next_chunk_begin + chunk_sizes[i];
-    std::merge(result.begin(), result.end(), next_chunk_begin, next_chunk_end, merged.begin());
+    std::merge(merged_result.begin(), merged_result.end(), next_chunk_begin, next_chunk_end, merged.begin());
 
-    result = std::move(merged);
+    merged_result = std::move(merged);
   }
 
-  GetOutput() = std::move(result);
+  GetOutput() = std::move(merged_result);
   return true;
 }
 
