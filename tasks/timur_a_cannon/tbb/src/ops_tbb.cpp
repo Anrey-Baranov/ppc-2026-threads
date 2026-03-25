@@ -6,7 +6,6 @@
 #include <utility>
 #include <vector>
 
-
 namespace timur_a_cannon {
 
 static void MultiplyBlocks(const std::vector<std::vector<double>> &a, const std::vector<std::vector<double>> &b,
