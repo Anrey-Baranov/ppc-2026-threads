@@ -22,6 +22,13 @@ double DistSq(const Point &a, const Point &b) {
   return ((a.x - b.x) * (a.x - b.x)) + ((a.y - b.y) * (a.y - b.y));
 }
 
+bool IsBetterMin(const Point &candidate, const Point &current_min) {
+  if (candidate.y < current_min.y - 1e-9) {
+    return true;
+  }
+  return (std::abs(candidate.y - current_min.y) <= 1e-9) && (candidate.x < current_min.x);
+}
+
 size_t FindMinPointIndexSTL(const std::vector<Point> &points) {
   size_t n = points.size();
   unsigned int num_threads = std::thread::hardware_concurrency();
@@ -35,31 +42,29 @@ size_t FindMinPointIndexSTL(const std::vector<Point> &points) {
   std::vector<std::future<size_t>> futures;
   size_t chunk = (n + num_threads - 1) / num_threads;
 
+  auto worker = [&points](size_t start, size_t end) {
+    size_t local_min = start;
+    for (size_t j = start + 1; j < end; ++j) {
+      if (IsBetterMin(points[j], points[local_min])) {
+        local_min = j;
+      }
+    }
+    return local_min;
+  };
+
   for (unsigned int i = 0; i < num_threads; ++i) {
     size_t start = i * chunk;
     size_t end = std::min(start + chunk, n);
-
     if (start >= n) {
       break;
     }
-
-    futures.push_back(std::async(std::launch::async, [&points, start, end]() {
-      size_t local_min = start;
-      for (size_t j = start + 1; j < end; ++j) {
-        if (points[j].y < points[local_min].y - 1e-9 ||
-            (std::abs(points[j].y - points[local_min].y) <= 1e-9 && points[j].x < points[local_min].x)) {
-          local_min = j;
-        }
-      }
-      return local_min;
-    }));
+    futures.push_back(std::async(std::launch::async, worker, start, end));
   }
 
   size_t min_idx = futures[0].get();
   for (size_t i = 1; i < futures.size(); ++i) {
     size_t local_min = futures[i].get();
-    if (points[local_min].y < points[min_idx].y - 1e-9 ||
-        (std::abs(points[local_min].y - points[min_idx].y) <= 1e-9 && points[local_min].x < points[min_idx].x)) {
+    if (IsBetterMin(points[local_min], points[min_idx])) {
       min_idx = local_min;
     }
   }
@@ -68,8 +73,8 @@ size_t FindMinPointIndexSTL(const std::vector<Point> &points) {
 }
 
 template <typename RandomIt, typename Compare>
-void StlQuickSort(RandomIt first, RandomIt last, Compare comp, int depth = 0) {
-  if (last - first < 2048 || depth >= 3) {
+void StlParallelSortSub(RandomIt first, RandomIt last, Compare comp) {
+  if (last - first < 2048) {
     std::sort(first, last, comp);
     return;
   }
@@ -77,18 +82,36 @@ void StlQuickSort(RandomIt first, RandomIt last, Compare comp, int depth = 0) {
   RandomIt middle1 = std::partition(first, last, [pivot, comp](const auto &a) { return comp(a, pivot); });
   RandomIt middle2 = std::partition(middle1, last, [pivot, comp](const auto &a) { return !comp(pivot, a); });
 
-  auto future1 = std::async(std::launch::async,
-                            [first, middle1, comp, depth]() { StlQuickSort(first, middle1, comp, depth + 1); });
+  auto future1 = std::async(std::launch::async, [first, middle1, comp]() { std::sort(first, middle1, comp); });
+  std::sort(middle2, last, comp);
+  future1.wait();
+}
 
-  StlQuickSort(middle2, last, comp, depth + 1);
+template <typename RandomIt, typename Compare>
+void StlParallelSort(RandomIt first, RandomIt last, Compare comp) {
+  if (last - first < 2048) {
+    std::sort(first, last, comp);
+    return;
+  }
+  auto pivot = *(first + ((last - first) / 2));
+  RandomIt middle1 = std::partition(first, last, [pivot, comp](const auto &a) { return comp(a, pivot); });
+  RandomIt middle2 = std::partition(middle1, last, [pivot, comp](const auto &a) { return !comp(pivot, a); });
+
+  auto future1 = std::async(std::launch::async, [first, middle1, comp]() { StlParallelSortSub(first, middle1, comp); });
+  StlParallelSortSub(middle2, last, comp);
   future1.wait();
 }
 
 std::vector<Point> FilterPointsSTL(const std::vector<Point> &points, const Point &p0) {
   size_t n = points.size();
-  std::vector<uint8_t> keep(n, 1);
 
+  if (n <= 2) {
+    return points;
+  }
+
+  std::vector<uint8_t> keep(n, 1);
   unsigned int num_threads = std::thread::hardware_concurrency();
+
   if (num_threads == 0) {
     num_threads = 4;
   }
@@ -96,31 +119,31 @@ std::vector<Point> FilterPointsSTL(const std::vector<Point> &points, const Point
     num_threads = 1;
   }
 
-  if (n > 2) {
-    size_t num_elements = n - 2;
-    size_t chunk = (num_elements + num_threads - 1) / num_threads;
-    std::vector<std::future<void>> futures;
+  size_t num_elements = n - 2;
+  size_t chunk = (num_elements + num_threads - 1) / num_threads;
+  std::vector<std::future<void>> futures;
 
-    for (unsigned int i = 0; i < num_threads; ++i) {
-      size_t start = 1 + i * chunk;
-      size_t end = std::min(start + chunk, n - 1);
-
-      if (start >= n - 1) {
-        break;
+  auto worker = [&points, &keep, &p0](size_t start, size_t end) {
+    for (size_t j = start; j < end; ++j) {
+      if (std::abs(CrossProduct(p0, points[j], points[j + 1])) < 1e-9) {
+        keep[j] = 0;
       }
+    }
+  };
 
-      futures.push_back(std::async(std::launch::async, [&points, &keep, &p0, start, end]() {
-        for (size_t j = start; j < end; ++j) {
-          if (std::abs(CrossProduct(p0, points[j], points[j + 1])) < 1e-9) {
-            keep[j] = 0;
-          }
-        }
-      }));
+  for (unsigned int i = 0; i < num_threads; ++i) {
+    size_t start = 1 + (i * chunk);
+    size_t end = std::min(start + chunk, n - 1);
+
+    if (start >= n - 1) {
+      break;
     }
 
-    for (auto &f : futures) {
-      f.wait();
-    }
+    futures.push_back(std::async(std::launch::async, worker, start, end));
+  }
+
+  for (auto &f : futures) {
+    f.wait();
   }
 
   std::vector<Point> filtered;
@@ -183,7 +206,7 @@ bool ConvexHullGrahamSTL::RunImpl() {
     return cp > 0;
   };
 
-  StlQuickSort(points.begin() + 1, points.end(), comp);
+  StlParallelSort(points.begin() + 1, points.end(), comp);
 
   InType filtered = FilterPointsSTL(points, p0);
 
