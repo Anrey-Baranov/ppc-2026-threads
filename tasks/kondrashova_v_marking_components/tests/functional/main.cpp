@@ -8,6 +8,7 @@
 
 #include "kondrashova_v_marking_components/common/include/common.hpp"
 #include "kondrashova_v_marking_components/seq/include/ops_seq.hpp"
+#include "kondrashova_v_marking_components/omp/include/ops_omp.hpp"
 #include "util/include/func_test_util.hpp"
 
 namespace kondrashova_v_marking_components {
