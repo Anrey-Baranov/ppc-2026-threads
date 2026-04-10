@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <functional>
+#include <numeric>
 #include <stack>
 #include <thread>
 #include <utility>
@@ -121,6 +122,7 @@ bool VinyaikinaEMultidimIntegrSimpsonSTL::RunImpl() {
 
   std::vector<double> results(num_threads, 0.0);
   std::vector<std::thread> threads;
+  threads.reserve(num_threads);
 
   for (int i = 0; i < num_threads; ++i) {
     threads.emplace_back([i, num_threads, delta, &limits, &actual_step, &function, simpson_factor, &results]() {
@@ -128,10 +130,10 @@ bool VinyaikinaEMultidimIntegrSimpsonSTL::RunImpl() {
       double right = limits[0].second;
 
       if (i != 0) {
-        left = CustomRound(limits[0].first + delta * i, actual_step[0]);
+        left = CustomRound(limits[0].first + (delta * i), actual_step[0]);
       }
       if (i != num_threads - 1) {
-        right = CustomRound(limits[0].second - delta * (num_threads - i - 1), actual_step[0]);
+        right = CustomRound(limits[0].second - (delta * (num_threads - i - 1)), actual_step[0]);
       }
 
       results[i] = OuntNtIntegral(left, right, simpson_factor, limits, actual_step, function);
