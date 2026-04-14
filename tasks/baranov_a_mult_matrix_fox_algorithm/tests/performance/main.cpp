@@ -5,12 +5,12 @@
 #include <tuple>
 #include <vector>
 
-#include "baranov_a_mult_matrix_fox_algorithm/common/include/common.hpp"
-#include "baranov_a_mult_matrix_fox_algorithm/seq/include/ops_seq.hpp"
-#include "baranov_a_mult_matrix_fox_algorithm/omp/include/ops_omp.hpp"
-#include "baranov_a_mult_matrix_fox_algorithm/tbb/include/ops_tbb.hpp"
-#include "baranov_a_mult_matrix_fox_algorithm/stl/include/ops_stl.hpp"
 #include "baranov_a_mult_matrix_fox_algorithm/all/include/ops_all.hpp"
+#include "baranov_a_mult_matrix_fox_algorithm/common/include/common.hpp"
+#include "baranov_a_mult_matrix_fox_algorithm/omp/include/ops_omp.hpp"
+#include "baranov_a_mult_matrix_fox_algorithm/seq/include/ops_seq.hpp"
+#include "baranov_a_mult_matrix_fox_algorithm/stl/include/ops_stl.hpp"
+#include "baranov_a_mult_matrix_fox_algorithm/tbb/include/ops_tbb.hpp"
 #include "util/include/perf_test_util.hpp"
 
 namespace baranov_a_mult_matrix_fox_algorithm_test {
