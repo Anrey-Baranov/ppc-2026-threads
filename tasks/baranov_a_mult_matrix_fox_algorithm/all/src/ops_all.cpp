@@ -35,11 +35,11 @@ void MultiplyBlock(const std::vector<double>& matrix_a,
   }
 }
 
-void MultiplyTBB(const std::vector<double>& matrix_a,
+void MultiplySEQ(const std::vector<double>& matrix_a,
                  const std::vector<double>& matrix_b,
                  std::vector<double>& output,
                  size_t n) {
-  tbb::parallel_for(static_cast<size_t>(0), n, [&](size_t i) {
+  for (size_t i = 0; i < n; ++i) {
     for (size_t j = 0; j < n; ++j) {
       double sum = 0.0;
       for (size_t k = 0; k < n; ++k) {
@@ -47,7 +47,7 @@ void MultiplyTBB(const std::vector<double>& matrix_a,
       }
       output[(i * n) + j] = sum;
     }
-  });
+  }
 }
 
 void MultiplyOMP(const std::vector<double>& matrix_a,
@@ -64,6 +64,21 @@ void MultiplyOMP(const std::vector<double>& matrix_a,
       output[(i * n) + j] = sum;
     }
   }
+}
+
+void MultiplyTBB(const std::vector<double>& matrix_a,
+                 const std::vector<double>& matrix_b,
+                 std::vector<double>& output,
+                 size_t n) {
+  tbb::parallel_for(static_cast<size_t>(0), n, [&](size_t i) {
+    for (size_t j = 0; j < n; ++j) {
+      double sum = 0.0;
+      for (size_t k = 0; k < n; ++k) {
+        sum += matrix_a[(i * n) + k] * matrix_b[(k * n) + j];
+      }
+      output[(i * n) + j] = sum;
+    }
+  });
 }
 
 void MultiplySTL(const std::vector<double>& matrix_a,
@@ -103,56 +118,31 @@ void MultiplySTL(const std::vector<double>& matrix_a,
   }
 }
 
-void MultiplySEQ(const std::vector<double>& matrix_a,
-                 const std::vector<double>& matrix_b,
-                 std::vector<double>& output,
-                 size_t n) {
-  for (size_t i = 0; i < n; ++i) {
-    for (size_t j = 0; j < n; ++j) {
-      double sum = 0.0;
-      for (size_t k = 0; k < n; ++k) {
-        sum += matrix_a[(i * n) + k] * matrix_b[(k * n) + j];
-      }
-      output[(i * n) + j] = sum;
-    }
-  }
-}
-
-void FoxBlockTBB(const std::vector<double>& matrix_a,
+void FoxBlockSEQ(const std::vector<double>& matrix_a,
                  const std::vector<double>& matrix_b,
                  std::vector<double>& output,
                  size_t n,
                  size_t block_size) {
   size_t num_blocks = (n + block_size - 1) / block_size;
 
-  tbb::parallel_for(static_cast<size_t>(0), n * n, [&](size_t idx) {
-    output[idx] = 0.0;
-  });
+  std::fill(output.begin(), output.end(), 0.0);
 
   for (size_t bk = 0; bk < num_blocks; ++bk) {
-    tbb::parallel_for(static_cast<size_t>(0), num_blocks * num_blocks, [&](size_t linear_idx) {
-      size_t bi = linear_idx / num_blocks;
-      size_t bj = linear_idx % num_blocks;
+    for (size_t bi = 0; bi < num_blocks; ++bi) {
+      for (size_t bj = 0; bj < num_blocks; ++bj) {
+        size_t broadcast_block = (bi + bk) % num_blocks;
 
-      size_t broadcast_block = (bi + bk) % num_blocks;
+        size_t i_start = bi * block_size;
+        size_t i_end = std::min(i_start + block_size, n);
+        size_t j_start = bj * block_size;
+        size_t j_end = std::min(j_start + block_size, n);
+        size_t k_start = broadcast_block * block_size;
+        size_t k_end = std::min(k_start + block_size, n);
 
-      size_t i_start = bi * block_size;
-      size_t i_end = std::min(i_start + block_size, n);
-      size_t j_start = bj * block_size;
-      size_t j_end = std::min(j_start + block_size, n);
-      size_t k_start = broadcast_block * block_size;
-      size_t k_end = std::min(k_start + block_size, n);
-
-      for (size_t i = i_start; i < i_end; ++i) {
-        for (size_t j = j_start; j < j_end; ++j) {
-          double sum = 0.0;
-          for (size_t k = k_start; k < k_end; ++k) {
-            sum += matrix_a[(i * n) + k] * matrix_b[(k * n) + j];
-          }
-          output[(i * n) + j] += sum;
-        }
+        MultiplyBlock(matrix_a, matrix_b, output, n,
+                      i_start, i_end, j_start, j_end, k_start, k_end);
       }
-    });
+    }
   }
 }
 
@@ -196,6 +186,44 @@ void FoxBlockOMP(const std::vector<double>& matrix_a,
   }
 }
 
+void FoxBlockTBB(const std::vector<double>& matrix_a,
+                 const std::vector<double>& matrix_b,
+                 std::vector<double>& output,
+                 size_t n,
+                 size_t block_size) {
+  size_t num_blocks = (n + block_size - 1) / block_size;
+
+  tbb::parallel_for(static_cast<size_t>(0), n * n, [&](size_t idx) {
+    output[idx] = 0.0;
+  });
+
+  for (size_t bk = 0; bk < num_blocks; ++bk) {
+    tbb::parallel_for(static_cast<size_t>(0), num_blocks * num_blocks, [&](size_t linear_idx) {
+      size_t bi = linear_idx / num_blocks;
+      size_t bj = linear_idx % num_blocks;
+
+      size_t broadcast_block = (bi + bk) % num_blocks;
+
+      size_t i_start = bi * block_size;
+      size_t i_end = std::min(i_start + block_size, n);
+      size_t j_start = bj * block_size;
+      size_t j_end = std::min(j_start + block_size, n);
+      size_t k_start = broadcast_block * block_size;
+      size_t k_end = std::min(k_start + block_size, n);
+
+      for (size_t i = i_start; i < i_end; ++i) {
+        for (size_t j = j_start; j < j_end; ++j) {
+          double sum = 0.0;
+          for (size_t k = k_start; k < k_end; ++k) {
+            sum += matrix_a[(i * n) + k] * matrix_b[(k * n) + j];
+          }
+          output[(i * n) + j] += sum;
+        }
+      }
+    });
+  }
+}
+
 void FoxBlockSTL(const std::vector<double>& matrix_a,
                  const std::vector<double>& matrix_b,
                  std::vector<double>& output,
@@ -203,7 +231,7 @@ void FoxBlockSTL(const std::vector<double>& matrix_a,
                  size_t block_size) {
   size_t num_blocks = (n + block_size - 1) / block_size;
 
-  std::ranges::fill(output, 0.0);
+  std::fill(output.begin(), output.end(), 0.0);
 
   unsigned int num_threads = std::thread::hardware_concurrency();
   if (num_threads == 0) {
@@ -253,34 +281,6 @@ void FoxBlockSTL(const std::vector<double>& matrix_a,
   }
 }
 
-void FoxBlockSEQ(const std::vector<double>& matrix_a,
-                 const std::vector<double>& matrix_b,
-                 std::vector<double>& output,
-                 size_t n,
-                 size_t block_size) {
-  size_t num_blocks = (n + block_size - 1) / block_size;
-
-  std::fill(output.begin(), output.end(), 0.0);
-
-  for (size_t bk = 0; bk < num_blocks; ++bk) {
-    for (size_t bi = 0; bi < num_blocks; ++bi) {
-      for (size_t bj = 0; bj < num_blocks; ++bj) {
-        size_t broadcast_block = (bi + bk) % num_blocks;
-
-        size_t i_start = bi * block_size;
-        size_t i_end = std::min(i_start + block_size, n);
-        size_t j_start = bj * block_size;
-        size_t j_end = std::min(j_start + block_size, n);
-        size_t k_start = broadcast_block * block_size;
-        size_t k_end = std::min(k_start + block_size, n);
-
-        MultiplyBlock(matrix_a, matrix_b, output, n,
-                      i_start, i_end, j_start, j_end, k_start, k_end);
-      }
-    }
-  }
-}
-
 void MultiplyDispatch(bool use_parallel, const std::vector<double>& matrix_a,
                       const std::vector<double>& matrix_b,
                       std::vector<double>& output,
@@ -289,6 +289,7 @@ void MultiplyDispatch(bool use_parallel, const std::vector<double>& matrix_a,
     MultiplySEQ(matrix_a, matrix_b, output, n);
     return;
   }
+
 #ifdef TBB
   MultiplyTBB(matrix_a, matrix_b, output, n);
 #elif defined(_OPENMP)
@@ -307,6 +308,7 @@ void FoxBlockDispatch(bool use_parallel, const std::vector<double>& matrix_a,
     FoxBlockSEQ(matrix_a, matrix_b, output, n, block_size);
     return;
   }
+
 #ifdef TBB
   FoxBlockTBB(matrix_a, matrix_b, output, n, block_size);
 #elif defined(_OPENMP)
@@ -352,6 +354,7 @@ void BaranovAMultMatrixFoxAlgorithmALL::FoxBlockMultiplication(size_t n, size_t 
 bool BaranovAMultMatrixFoxAlgorithmALL::RunImpl() {
   const auto& [matrix_size, matrix_a, matrix_b] = GetInput();
   size_t n = matrix_size;
+
   size_t block_size = 64;
   if (n < block_size) {
     StandardMultiplication(n);

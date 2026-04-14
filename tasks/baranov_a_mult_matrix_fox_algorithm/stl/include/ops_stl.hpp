@@ -5,14 +5,14 @@
 #include "baranov_a_mult_matrix_fox_algorithm/common/include/common.hpp"
 #include "task/include/task.hpp"
 
-namespace baranov_a_mult_matrix_fox_algorithm_all {
+namespace baranov_a_mult_matrix_fox_algorithm_stl {
 
-class BaranovAMultMatrixFoxAlgorithmALL : public baranov_a_mult_matrix_fox_algorithm::BaseTask {
+class BaranovAMultMatrixFoxAlgorithmSTL : public baranov_a_mult_matrix_fox_algorithm::BaseTask {
  public:
   static constexpr ppc::task::TypeOfTask GetStaticTypeOfTask() {
-    return ppc::task::TypeOfTask::kALL;
+    return ppc::task::TypeOfTask::kSTL;
   }
-  explicit BaranovAMultMatrixFoxAlgorithmALL(const baranov_a_mult_matrix_fox_algorithm::InType& in);
+  explicit BaranovAMultMatrixFoxAlgorithmSTL(const baranov_a_mult_matrix_fox_algorithm::InType &in);
 
  private:
   bool ValidationImpl() override;
@@ -24,4 +24,4 @@ class BaranovAMultMatrixFoxAlgorithmALL : public baranov_a_mult_matrix_fox_algor
   void StandardMultiplication(size_t n);
 };
 
-}  // namespace baranov_a_mult_matrix_fox_algorithm_all
+}  // namespace baranov_a_mult_matrix_fox_algorithm_stl
