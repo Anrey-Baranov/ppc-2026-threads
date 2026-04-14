@@ -75,6 +75,7 @@ void MultiplyTBB(const std::vector<double> &matrix_a, const std::vector<double> 
 }
 #endif
 
+#if !defined(TBB) && !defined(_OPENMP)
 void MultiplySTL(const std::vector<double> &matrix_a, const std::vector<double> &matrix_b, std::vector<double> &output,
                  size_t n) {
   unsigned int num_threads = std::thread::hardware_concurrency();
@@ -109,6 +110,7 @@ void MultiplySTL(const std::vector<double> &matrix_a, const std::vector<double> 
     thread.join();
   }
 }
+#endif
 
 void FoxBlockSEQ(const std::vector<double> &matrix_a, const std::vector<double> &matrix_b, std::vector<double> &output,
                  size_t n, size_t block_size) {
@@ -208,6 +210,7 @@ void FoxBlockTBB(const std::vector<double> &matrix_a, const std::vector<double> 
 }
 #endif
 
+#if !defined(TBB) && !defined(_OPENMP)
 void FoxBlockSTL(const std::vector<double> &matrix_a, const std::vector<double> &matrix_b, std::vector<double> &output,
                  size_t n, size_t block_size) {
   size_t num_blocks = (n + block_size - 1) / block_size;
@@ -260,6 +263,7 @@ void FoxBlockSTL(const std::vector<double> &matrix_a, const std::vector<double> 
     }
   }
 }
+#endif
 
 void MultiplyDispatch(bool use_parallel, const std::vector<double> &matrix_a, const std::vector<double> &matrix_b,
                       std::vector<double> &output, size_t n) {
