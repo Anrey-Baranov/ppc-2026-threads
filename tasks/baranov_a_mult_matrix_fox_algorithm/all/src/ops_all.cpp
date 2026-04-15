@@ -39,6 +39,19 @@ void MultiplySEQ(const std::vector<double> &matrix_a, const std::vector<double> 
   }
 }
 
+void MultiplyRowRange(const std::vector<double> &matrix_a, const std::vector<double> &matrix_b,
+                      std::vector<double> &output, size_t n, size_t start_i, size_t end_i) {
+  for (size_t i = start_i; i < end_i; ++i) {
+    for (size_t j = 0; j < n; ++j) {
+      double sum = 0.0;
+      for (size_t k = 0; k < n; ++k) {
+        sum += matrix_a[(i * n) + k] * matrix_b[(k * n) + j];
+      }
+      output[(i * n) + j] = sum;
+    }
+  }
+}
+
 void MultiplySTL(const std::vector<double> &matrix_a, const std::vector<double> &matrix_b, std::vector<double> &output,
                  size_t n) {
   unsigned int num_threads = std::thread::hardware_concurrency();
@@ -56,17 +69,7 @@ void MultiplySTL(const std::vector<double> &matrix_a, const std::vector<double> 
       break;
     }
 
-    threads.emplace_back([&, start_i, end_i]() {
-      for (size_t i = start_i; i < end_i; ++i) {
-        for (size_t j = 0; j < n; ++j) {
-          double sum = 0.0;
-          for (size_t k = 0; k < n; ++k) {
-            sum += matrix_a[(i * n) + k] * matrix_b[(k * n) + j];
-          }
-          output[(i * n) + j] = sum;
-        }
-      }
-    });
+    threads.emplace_back([&, start_i, end_i]() { MultiplyRowRange(matrix_a, matrix_b, output, n, start_i, end_i); });
   }
 
   for (auto &thread : threads) {
@@ -78,7 +81,7 @@ void FoxBlockSEQ(const std::vector<double> &matrix_a, const std::vector<double> 
                  size_t n, size_t block_size) {
   size_t num_blocks = (n + block_size - 1) / block_size;
 
-  std::fill(output.begin(), output.end(), 0.0);
+  std::ranges::fill(output, 0.0);
 
   for (size_t bk = 0; bk < num_blocks; ++bk) {
     for (size_t bi = 0; bi < num_blocks; ++bi) {
@@ -97,11 +100,32 @@ void FoxBlockSEQ(const std::vector<double> &matrix_a, const std::vector<double> 
   }
 }
 
+void ProcessBlockRange(const std::vector<double> &matrix_a, const std::vector<double> &matrix_b,
+                       std::vector<double> &output, size_t n, size_t bk, size_t num_blocks, size_t block_size,
+                       const std::vector<size_t> &block_indices, size_t start_idx, size_t end_idx) {
+  for (size_t idx = start_idx; idx < end_idx; ++idx) {
+    size_t linear_idx = block_indices[idx];
+    size_t bi = linear_idx / num_blocks;
+    size_t bj = linear_idx % num_blocks;
+
+    size_t broadcast_block = (bi + bk) % num_blocks;
+
+    size_t i_start = bi * block_size;
+    size_t i_end = std::min(i_start + block_size, n);
+    size_t j_start = bj * block_size;
+    size_t j_end = std::min(j_start + block_size, n);
+    size_t k_start = broadcast_block * block_size;
+    size_t k_end = std::min(k_start + block_size, n);
+
+    MultiplyBlock(matrix_a, matrix_b, output, n, i_start, i_end, j_start, j_end, k_start, k_end);
+  }
+}
+
 void FoxBlockSTL(const std::vector<double> &matrix_a, const std::vector<double> &matrix_b, std::vector<double> &output,
                  size_t n, size_t block_size) {
   size_t num_blocks = (n + block_size - 1) / block_size;
 
-  std::fill(output.begin(), output.end(), 0.0);
+  std::ranges::fill(output, 0.0);
 
   unsigned int num_threads = std::thread::hardware_concurrency();
   if (num_threads == 0) {
@@ -125,20 +149,7 @@ void FoxBlockSTL(const std::vector<double> &matrix_a, const std::vector<double> 
       }
 
       threads.emplace_back([&, start_idx, end_idx, bk]() {
-        for (size_t idx = start_idx; idx < end_idx; ++idx) {
-          size_t linear_idx = block_indices[idx];
-          size_t bi = linear_idx / num_blocks;
-          size_t bj = linear_idx % num_blocks;
-          size_t broadcast_block = (bi + bk) % num_blocks;
-          size_t i_start = bi * block_size;
-          size_t i_end = std::min(i_start + block_size, n);
-          size_t j_start = bj * block_size;
-          size_t j_end = std::min(j_start + block_size, n);
-          size_t k_start = broadcast_block * block_size;
-          size_t k_end = std::min(k_start + block_size, n);
-
-          MultiplyBlock(matrix_a, matrix_b, output, n, i_start, i_end, j_start, j_end, k_start, k_end);
-        }
+        ProcessBlockRange(matrix_a, matrix_b, output, n, bk, num_blocks, block_size, block_indices, start_idx, end_idx);
       });
     }
 
