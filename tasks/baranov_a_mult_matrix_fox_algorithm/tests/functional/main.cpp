@@ -28,6 +28,8 @@ class BaranovAFuncTests : public ppc::util::BaseRunFuncTests<baranov_a_mult_matr
     size_t n = std::get<0>(test_param);
     std::string type = std::get<1>(test_param);
     return "n_" + std::to_string(n) + "_" + type;
+    std::string impl = GetImplementationName<TaskType>();
+    return "n_" + std::to_string(n) + "_" + type + "_" + impl;
   }
 
  protected:
@@ -95,6 +97,22 @@ class BaranovAFuncTests : public ppc::util::BaseRunFuncTests<baranov_a_mult_matr
   }
 
  private:
+  template <typename T>
+  static std::string GetImplementationName() {
+    if constexpr (std::is_same_v<T, baranov_a_mult_matrix_fox_algorithm_seq::BaranovAMultMatrixFoxAlgorithmSEQ>) {
+      return "seq";
+    } else if constexpr (std::is_same_v<T,
+                                        baranov_a_mult_matrix_fox_algorithm_omp::BaranovAMultMatrixFoxAlgorithmOMP>) {
+      return "omp";
+    } else if constexpr (std::is_same_v<T,
+                                        baranov_a_mult_matrix_fox_algorithm_tbb::BaranovAMultMatrixFoxAlgorithmTBB>) {
+      return "tbb";
+    } else if constexpr (std::is_same_v<T,
+                                        baranov_a_mult_matrix_fox_algorithm_stl::BaranovAMultMatrixFoxAlgorithmSTL>) {
+      return "stl";
+    }
+  }
+
   static void ReferenceMultiply(const std::vector<double> &a, const std::vector<double> &b, std::vector<double> &c,
                                 size_t n) {
     for (size_t i = 0; i < n; ++i) {
@@ -186,9 +204,26 @@ class BaranovAFuncTests : public ppc::util::BaseRunFuncTests<baranov_a_mult_matr
   baranov_a_mult_matrix_fox_algorithm::OutType expected_output_;
 };
 
+using BaranovASEQFuncTest =
+    BaranovAMatrixMultiplicationFuncTest<baranov_a_mult_matrix_fox_algorithm_seq::BaranovAMultMatrixFoxAlgorithmSEQ>;
+using BaranovAOMPFuncTest =
+    BaranovAMatrixMultiplicationFuncTest<baranov_a_mult_matrix_fox_algorithm_omp::BaranovAMultMatrixFoxAlgorithmOMP>;
+using BaranovATBBFuncTest =
+    BaranovAMatrixMultiplicationFuncTest<baranov_a_mult_matrix_fox_algorithm_tbb::BaranovAMultMatrixFoxAlgorithmTBB>;
+using BaranovASTLFuncTest =
+    BaranovAMatrixMultiplicationFuncTest<baranov_a_mult_matrix_fox_algorithm_stl::BaranovAMultMatrixFoxAlgorithmSTL>;
+
 namespace {
 
 TEST_P(BaranovAFuncTests, MatrixMultiplicationTest) {
+  ExecuteTest(GetParam());
+}
+
+TEST_P(BaranovATBBFuncTest, MatrixMultiplicationTest) {
+  ExecuteTest(GetParam());
+}
+
+TEST_P(BaranovASTLFuncTest, MatrixMultiplicationTest) {
   ExecuteTest(GetParam());
 }
 
@@ -218,10 +253,44 @@ const auto kTestTasksList =
                                           baranov_a_mult_matrix_fox_algorithm::InType>(
                        kTestParams, PPC_SETTINGS_baranov_a_mult_matrix_fox_algorithm));
 
+const auto kTestTasksListSEQ =
+    ppc::util::AddFuncTask<baranov_a_mult_matrix_fox_algorithm_seq::BaranovAMultMatrixFoxAlgorithmSEQ,
+                           baranov_a_mult_matrix_fox_algorithm::InType>(
+        kTestParams, PPC_SETTINGS_baranov_a_mult_matrix_fox_algorithm);
+
+const auto kTestTasksListOMP =
+    ppc::util::AddFuncTask<baranov_a_mult_matrix_fox_algorithm_omp::BaranovAMultMatrixFoxAlgorithmOMP,
+                           baranov_a_mult_matrix_fox_algorithm::InType>(
+        kTestParams, PPC_SETTINGS_baranov_a_mult_matrix_fox_algorithm);
+
+const auto kTestTasksListTBB =
+    ppc::util::AddFuncTask<baranov_a_mult_matrix_fox_algorithm_tbb::BaranovAMultMatrixFoxAlgorithmTBB,
+                           baranov_a_mult_matrix_fox_algorithm::InType>(
+        kTestParams, PPC_SETTINGS_baranov_a_mult_matrix_fox_algorithm);
+
+const auto kTestTasksListSTL =
+    ppc::util::AddFuncTask<baranov_a_mult_matrix_fox_algorithm_stl::BaranovAMultMatrixFoxAlgorithmSTL,
+                           baranov_a_mult_matrix_fox_algorithm::InType>(
+        kTestParams, PPC_SETTINGS_baranov_a_mult_matrix_fox_algorithm);
+
+const auto kTestTasksList = std::tuple_cat(kTestTasksListSEQ, kTestTasksListOMP, kTestTasksListTBB, kTestTasksListSTL);
 const auto kGtestValues = ppc::util::ExpandToValues(kTestTasksList);
 const auto kTestName = BaranovAFuncTests::PrintFuncTestName<BaranovAFuncTests>;
 
 INSTANTIATE_TEST_SUITE_P(FoxAlgorithmTests, BaranovAFuncTests, kGtestValues, kTestName);
+const auto kTestNameSEQ = BaranovASEQFuncTest::PrintFuncTestName<BaranovASEQFuncTest>;
+const auto kTestNameOMP = BaranovAOMPFuncTest::PrintFuncTestName<BaranovAOMPFuncTest>;
+const auto kTestNameTBB = BaranovATBBFuncTest::PrintFuncTestName<BaranovATBBFuncTest>;
+const auto kTestNameSTL = BaranovASTLFuncTest::PrintFuncTestName<BaranovASTLFuncTest>;
+
+INSTANTIATE_TEST_SUITE_P(FoxAlgorithmSEQTes, BaranovASEQFuncTest, ppc::util::ExpandToValues(kTestTasksListSEQ),
+                         kTestNameSEQ);
+INSTANTIATE_TEST_SUITE_P(FoxAlgorithmOMPTests, BaranovAOMPFuncTest, ppc::util::ExpandToValues(kTestTasksListOMP),
+                         kTestNameOMP);
+INSTANTIATE_TEST_SUITE_P(FoxAlgorithmTBBTests, BaranovATBBFuncTest, ppc::util::ExpandToValues(kTestTasksListTBB),
+                         kTestNameTBB);
+INSTANTIATE_TEST_SUITE_P(FoxAlgorithmSTLTests, BaranovASTLFuncTest, ppc::util::ExpandToValues(kTestTasksListSTL),
+                         kTestNameSTL);
 
 }  // namespace
 
