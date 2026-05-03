@@ -71,12 +71,13 @@ output[(i * n) + j] += sum;
 1. Добавлена директива `#include <omp.h>`.
 2. В `RunImpl` добавлен адаптивный выбор `block_size` в зависимости от числа потоков:
 
-``cpp
+```cpp
 size_t block_size = 64;
 if (num_threads > 1) {
     block_size = std::max(static_cast<size_t>(32), n / static_cast<size_t>(num_threads * 2));
     block_size = std::min(block_size, static_cast<size_t>(128));
 }
+```
 
 Это сделано для того, чтобы количество блоков было хотя бы в 2-4 раза больше числа потоков, обеспечивая гибкое распределение нагрузки.
 3. Распараллеливание циклов, как описано в п.4.
@@ -101,7 +102,7 @@ if (num_threads > 1) {
 
 **Команда запуска:**
 
-``bash
+```bash
 
 # Запуск с 6 потоками (по числу физических ядер)
 export OMP_NUM_THREADS=6
@@ -110,6 +111,8 @@ export OMP_NUM_THREADS=6
 # Запуск с 12 потоками (по числу логических ядер)
 export OMP_NUM_THREADS=12
 ./build/bin/baranov_a_mult_matrix_fox_algorithm_omp_perf_tests --gtest_filter="*OMP*"
+
+```
 
 ## 8. Результаты
 
