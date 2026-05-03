@@ -54,7 +54,6 @@ for (size_t bi = 0; bi < num_blocks; ++bi) {
 
 В функции `ProcessBlock` используется `#pragma omp atomic` при обновлении элемента результирующей матрицы:
 
-```cpp
 #pragma omp atomic
 output[(i * n) + j] += sum;
 
