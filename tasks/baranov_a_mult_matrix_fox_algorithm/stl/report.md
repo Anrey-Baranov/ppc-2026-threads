@@ -92,6 +92,7 @@ void ParallelBlockProcessing(const std::vector<double> &matrix_a, const std::vec
 **Управление потоками:** Количество потоков определяется через `std::thread::hardware_concurrency()`. Это значение фиксируется на время выполнения программы.
 
 **Порядок выполнения:**
+
 1. Сначала создаются все потоки (`threads.emplace_back(...)`).
 2. Каждый поток выполняет свою часть работы независимо.
 3. **После создания всех потоков** вызывается `thread.join()` для каждого в отдельном цикле. Это гарантирует, что все потоки работают параллельно, а не последовательно.
@@ -108,6 +109,7 @@ void ParallelBlockProcessing(const std::vector<double> &matrix_a, const std::vec
 unsigned int num_threads = std::thread::hardware_concurrency();
 if (num_threads == 0) num_threads = 4;
 ```
+
 Используется аппаратное число потоков CPU (для Ryzen 5 5600X это 12). Если определение невозможно, используется значение по умолчанию (4).
 
 2. **Разбиение работы:**
@@ -115,6 +117,7 @@ if (num_threads == 0) num_threads = 4;
 ```cpp
 size_t chunk_size = (total_work + num_threads - 1) / num_threads;
 ```
+
 Работа делится на примерно равные части, последний поток получает остаток.
 
 3. **Запуск и ожидание потоков:**
@@ -126,6 +129,7 @@ threads.emplace_back([&, i_start, i_end_local]() {
 // ...
 for (auto &thread : threads) thread.join();
 ```
+
 Каждый поток запускается с лямбда-функцией, захватывающей необходимые данные по значению (кроме больших массивов, которые передаются по ссылке).
 
 4. **Особенности FoxBlockMultiplication:**

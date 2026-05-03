@@ -2,11 +2,12 @@
 
 **Student:** Баранов А.
 
-**Group:** [Ваша группа] 
+**Group:** [Ваша группа]
 
 **Variant:** Умножение квадратных матриц с использованием блочного алгоритма Фокса
 
 **Локальные отчёты:**
+
 - [SEQ](seq/report.md)
 - [OMP](omp/report.md)
 - [STL](stl/report.md)
@@ -28,14 +29,17 @@
 ## 2. Единая постановка задачи
 
 **Входные данные:**
+
 - `n` (size_t) — размерность квадратных матриц.
 - `matrix_a` (vector<double>) — первая матрица n x n (row-major).
 - `matrix_b` (vector<double>) — вторая матрица n x n.
 
 **Выходные данные:**
+
 - `matrix_c` (vector<double>) — результирующая матрица n x n, где C = A × B.
 
 **Ограничения:**
+
 - `n > 0`
 - Размеры векторов должны точно равняться `n × n`
 
@@ -54,15 +58,18 @@
 | Build type | Release (`-O3 -march=native`) |
 
 **Переменные окружения курса:**
+
 - `PPC_NUM_THREADS` — задаёт число потоков (экспортируется как `OMP_NUM_THREADS`).
 - `PPC_NUM_PROC` — задаёт число MPI-процессов.
 
 **Измеряемые параметры:**
+
 - **Время выполнения (ms)** — усреднённое по 10 запускам.
 - **Ускорение (Speedup)** = `T_seq / T_parallel`.
 - **Эффективность** = `Speedup / workers × 100%`.
 
 **Размеры задач:**
+
 - 64, 128, 256, 512, 1024, 2048
 
 **Управление количеством работников:**
@@ -95,6 +102,7 @@ export TBB_NUM_THREADS=12
 export OMP_NUM_THREADS=6
 mpiexec -np 2 ./build/bin/baranov_a_mult_matrix_fox_algorithm_all_perf_tests --gtest_filter="*ALL*"
 ```
+
 **Команды запуска через скрипты курса:**
 
 ```bash
@@ -192,29 +200,34 @@ scripts/run_tests.py --running-type=performance
 ## 6. Интерпретация различий
 
 **SEQ (последовательная версия):**
+
 - Служит базовой линией для расчёта ускорения.
 - Демонстрирует кубическую зависимость времени от размера матрицы O(n³).
 - Блочная структура улучшает кэш-локальность, но не влияет на асимптотику.
 
 **OpenMP:**
+
 - Простота добавления параллелизма (минимальные изменения кода).
 - Использование `collapse(2)` обеспечивает хороший баланс загрузки.
 - `atomic` директива вносит небольшое замедление, но гарантирует корректность.
 - Оптимальная производительность достигается при использовании физических ядер (6 потоков).
 
 **TBB:**
+
 - Наилучшее ускорение среди всех реализаций (7.67x).
 - Автоматическое управление пулом потоков и work-stealing.
 - Код получается лаконичным, без ручного разбиения работы.
 - Небольшой overhead на создание задач, но это компенсируется эффективным распределением.
 
 **STL (std::thread):**
+
 - Самый низкоуровневый и трудоёмкий подход.
 - Основной недостаток: создание потоков на каждой стадии `block_k` (многократный overhead).
 - Отсутствие встроенного пула потоков требует ручной реализации для максимальной производительности.
 - Преимущество: не требует внешних библиотек, только стандартный C++.
 
 **ALL (MPI + потоки):**
+
 - Высокая сложность реализации.
 - На одном узле проигрывает чистым потоковым версиям из-за MPI-коммуникаций.
 - Потенциально эффективна на кластерах с распределённой памятью.
@@ -231,6 +244,7 @@ git submodule update --init --recursive --depth=1
 ```
 
 **Сборка всех версий:**
+
 ```bash
 # SEQ, OMP, STL, TBB
 cmake -S . -B build -D USE_PERF_TESTS=ON -D CMAKE_BUILD_TYPE=Release
@@ -242,6 +256,7 @@ cmake --build build-mpi --parallel
 ```
 
 **Запуск функциональных тестов:**
+
 ```bash
 # Все тесты
 ./build/bin/baranov_a_mult_matrix_fox_algorithm_func_tests
@@ -254,6 +269,7 @@ cmake --build build-mpi --parallel
 ```
 
 **Запуск тестов производительности:**
+
 ```bash
 # Отключение масштабирования частоты
 sudo cpupower frequency-set --governor performance
@@ -261,6 +277,7 @@ sudo cpupower frequency-set --governor performance
 # Фиксация на конкретном ядре (опционально)
 taskset -c 0-5 ./build/bin/...
 ```
+
 **Запуск через скрипты курса:**
 
 ```bash
@@ -296,6 +313,7 @@ scripts/run_tests.py --running-type=processes --counts 2
 - **Для отладки и верификации:** SEQ как эталон корректности.
 
 **Что можно улучшить:**
+
 - Реализовать пул потоков для STL-версии, чтобы избежать многократного создания потоков.
 - Добавить поддержку разных типов данных (float, int) через шаблоны.
 - Реализовать `reduction` в OpenMP для устранения `atomic`.
@@ -303,10 +321,10 @@ scripts/run_tests.py --running-type=processes --counts 2
 ## 9. Источники
 
 1. Документация курса по параллельному программированию (НИЯУ МИФИ)
-2. OpenMP Specification: https://www.openmp.org/specifications/
-3. Intel oneTBB Documentation: https://oneapi-src.github.io/oneTBB/
-4. C++ Standard Library (std::thread): https://en.cppreference.com/w/cpp/thread/thread
-5. MPI Forum Standard: https://www.mpi-forum.org/docs/
+2. OpenMP Specification: <https://www.openmp.org/specifications/>
+3. Intel oneTBB Documentation: <https://oneapi-src.github.io/oneTBB/>
+4. C++ Standard Library (std::thread): <https://en.cppreference.com/w/cpp/thread/thread>
+5. MPI Forum Standard: <https://www.mpi-forum.org/docs/>
 6. Пример реализации: tasks/example_threads из репозитория курса
 
 ## 10. Приложение
@@ -330,6 +348,7 @@ for (size_t bi = 0; bi < num_blocks; ++bi) {
 ```
 
 **Листинг 2. Ключевой фрагмент TBB-версии (parallel_for):**
+
 ```cpp
 tbb::parallel_for(static_cast<size_t>(0), num_blocks * num_blocks, [&](size_t linear_idx) {
     size_t bi = linear_idx / num_blocks;
@@ -340,6 +359,7 @@ tbb::parallel_for(static_cast<size_t>(0), num_blocks * num_blocks, [&](size_t li
 ```
 
 **Листинг 3. Ключевой фрагмент STL-версии (ручное управление потоками):**
+
 ```cpp
 std::vector<std::thread> threads;
 size_t chunk_size = (total_work + num_threads - 1) / num_threads;
@@ -352,6 +372,7 @@ for (auto &thread : threads) thread.join();
 ```
 
 **Листинг 4. Ключевой фрагмент ALL-версии (MPI + OpenMP):**
+
 ```cpp
 int rank, size;
 MPI_Comm_rank(MPI_COMM_WORLD, &rank);
