@@ -29,7 +29,7 @@
 
 **Ключевые директивы и переменные:**
 
-```cpp
+``cpp
 #pragma omp parallel for collapse(2) default(none) shared(matrix_a, matrix_b, output, n, block_size, num_blocks, bk)
 for (size_t bi = 0; bi < num_blocks; ++bi) {
     for (size_t bj = 0; bj < num_blocks; ++bj) {
