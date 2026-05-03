@@ -58,10 +58,10 @@ void BaranovAMultMatrixFoxAlgorithmTBB::FoxBlockMultiplication(size_t n, size_t 
 
   size_t num_blocks = (n + block_size - 1) / block_size;
 
-  // Инициализация (параллельная)
+  //Инициализация(параллельная)
   tbb::parallel_for(static_cast<size_t>(0), n * n, [&](size_t idx) { output[idx] = 0.0; });
 
-  // Основной цикл по стадиям
+  //Основной цикл по стадиям
   for (size_t bk = 0; bk < num_blocks; ++bk) {
     tbb::parallel_for(static_cast<size_t>(0), num_blocks * num_blocks, [&](size_t linear_idx) {
       size_t bi = linear_idx / num_blocks;
@@ -76,7 +76,7 @@ void BaranovAMultMatrixFoxAlgorithmTBB::FoxBlockMultiplication(size_t n, size_t 
       size_t k_start = broadcast_block * block_size;
       size_t k_end = std::min(k_start + block_size, n);
 
-      // Умножение блоков (вложенные циклы)
+      //Умножение блоков(вложенные циклы)
       for (size_t i = i_start; i < i_end; ++i) {
         for (size_t j = j_start; j < j_end; ++j) {
           double sum = 0.0;
@@ -106,6 +106,12 @@ void BaranovAMultMatrixFoxAlgorithmTBB::FoxBlockMultiplication(size_t n, size_t 
 - В `FoxBlockMultiplication` на каждой стадии `bk` каждый поток обрабатывает свой уникальный блок, и разные блоки не пересекаются.
 
 **Управление потоками:** TBB автоматически управляет пулом потоков. Количество потоков можно контролировать через `tbb::global_control` или переменные окружения TBB.
+
+**Разбиение диапазона:** В реализации используется упрощённая форма `tbb::parallel_for(start, end, lambda)`, где TBB автоматически разбивает диапазон на поддиапазоны. Эквивалентно использованию `tbb::blocked_range<size_t>(start, end)` с grainsize = 1 (значение по умолчанию).
+
+**Partitioner:** Используется partitioner по умолчанию (`tbb::auto_partitioner`), который адаптивно выбирает стратегию разбиения в зависимости от нагрузки.
+
+**Grain size:** Размер зёрна не задавался явно; используется значение по умолчанию (1 итерация на задачу). Для данной задачи это приемлемо, так как каждая итерация достаточно трудоёмкая (умножение n элементов).
 
 ## 5. Детали реализации
 

@@ -53,6 +53,10 @@
 | Compiler | GCC 11.4.0 |
 | Build type | Release (`-O3 -march=native`) |
 
+**Переменные окружения курса:**
+- `PPC_NUM_THREADS` — задаёт число потоков (экспортируется как `OMP_NUM_THREADS`).
+- `PPC_NUM_PROC` — задаёт число MPI-процессов.
+
 **Измеряемые параметры:**
 - **Время выполнения (ms)** — усреднённое по 10 запускам.
 - **Ускорение (Speedup)** = `T_seq / T_parallel`.
@@ -90,6 +94,19 @@ export TBB_NUM_THREADS=12
 # ALL (MPI + OMP)
 export OMP_NUM_THREADS=6
 mpiexec -np 2 ./build/bin/baranov_a_mult_matrix_fox_algorithm_all_perf_tests --gtest_filter="*ALL*"
+```
+**Команды запуска через скрипты курса:**
+
+```bash
+# Функциональные тесты для всех backend-ов
+scripts/run_tests.py --running-type=threads --counts 1 2 4 6 12
+
+# MPI/гибридные конфигурации
+export PPC_NUM_PROC=2
+scripts/run_tests.py --running-type=processes --counts 2 4 6
+
+# Замеры производительности
+scripts/run_tests.py --running-type=performance
 ```
 
 ## 4. Сводка корректности
@@ -244,6 +261,19 @@ sudo cpupower frequency-set --governor performance
 # Фиксация на конкретном ядре (опционально)
 taskset -c 0-5 ./build/bin/...
 ```
+**Запуск через скрипты курса:**
+
+```bash
+# Функциональные тесты
+scripts/run_tests.py --running-type=threads --counts 1 2 4 6 12
+
+# Тесты производительности
+scripts/run_tests.py --running-type=performance
+
+# Для гибридной версии
+export PPC_NUM_PROC=2
+scripts/run_tests.py --running-type=processes --counts 2
+```
 
 ## 8. Заключение
 
@@ -305,7 +335,7 @@ tbb::parallel_for(static_cast<size_t>(0), num_blocks * num_blocks, [&](size_t li
     size_t bi = linear_idx / num_blocks;
     size_t bj = linear_idx % num_blocks;
     size_t broadcast_block = (bi + bk) % num_blocks;
-    // ... вычисление блоков
+    //...вычисление блоков
 });
 ```
 
@@ -334,7 +364,7 @@ size_t end_row = (rank == size - 1) ? n : start_row + rows_per_proc;
 #pragma omp parallel for
 for (size_t i = start_row; i < end_row; ++i) {
     for (size_t j = 0; j < n; ++j) {
-        // вычисление C[i][j]
+        //вычисление C[i][j]
     }
 }
 ```
